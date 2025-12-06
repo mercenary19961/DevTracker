@@ -11,10 +11,38 @@ class NoteController extends Controller
 {
     public function index()
     {
-        $perPage = min(request('per_page', 10), 100); // gives users the ability to set per_page, capped at 100
+        $query = Note::query();
+
+        // Search filter
+        if (request()->has('search')) {
+            $search = request('search');
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                  ->orWhere('content', 'like', "%{$search}%");
+            });
+        }
+
+        // Sorting
+        $sort = request('sort', 'created_at');
+        $direction = request('direction', 'desc');
+
+        // Whitelist allowed sortable columns for safety
+        $allowedSorts = ['id', 'title', 'created_at', 'updated_at'];
+        $allowedDirections = ['asc', 'desc'];
+
+        if (in_array($sort, $allowedSorts) && in_array($direction, $allowedDirections)) {
+            $query->orderBy($sort, $direction);
+        } else {
+            // Fallback to default if invalid parameters
+            $query->orderBy('created_at', 'desc');
+        }
+
+        // Pagination
+        $perPage = min(request('per_page', 10), 100);
+
         return NoteResource::collection(
-            Note::orderBy('created_at', 'desc')->paginate($perPage)
-            );
+            $query->paginate($perPage)
+        );
     }
 
     public function show(Note $note)
