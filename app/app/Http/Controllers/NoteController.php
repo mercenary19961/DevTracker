@@ -3,71 +3,45 @@
 namespace App\Http\Controllers;
 
 use App\Models\Note;
-use Illuminate\Http\Request;
+use App\Http\Requests\StoreNoteRequest;
+use App\Http\Requests\UpdateNoteRequest;
+use App\Http\Resources\NoteResource;
 
 class NoteController extends Controller
 {
-    /**
-     * Display a listing of the resource.
-     */
     public function index()
     {
-        return Note::all();
+        $perPage = min(request('per_page', 10), 100); // gives users the ability to set per_page, capped at 100
+        return NoteResource::collection(
+            Note::orderBy('created_at', 'desc')->paginate($perPage)
+            );
     }
 
-    /**
-     * Show the form for creating a new resource.
-     */
-    public function create()
+    public function show(Note $note)
     {
-        //
+        return new NoteResource($note);
     }
 
-    /**
-     * Store a newly created resource in storage.
-     */
-    public function store(Request $request)
+    public function store(StoreNoteRequest $request)
     {
-        $validated = $request->validate([
-            'title' => 'required|string|max:255',
-            'content' => 'nullable|string',
-        ]);
+        $note = Note::create($request->validated());
 
-        $note = Note::create($validated);
-
-        return response()->json($note, 201);
+        return (new NoteResource($note))
+            ->response()
+            ->setStatusCode(201);
     }
 
-    /**
-     * Display the specified resource.
-     */
-    public function show($id)
+    public function update(UpdateNoteRequest $request, Note $note)
     {
-        $note = Note::findOrFail($id);
-        return response()->json($note);
+        $note->update($request->validated());
+
+        return new NoteResource($note);
     }
 
-    /**
-     * Show the form for editing the specified resource.
-     */
-    public function edit(Note $note)
-    {
-        //
-    }
-
-    /**
-     * Update the specified resource in storage.
-     */
-    public function update(Request $request, Note $note)
-    {
-        //
-    }
-
-    /**
-     * Remove the specified resource from storage.
-     */
     public function destroy(Note $note)
     {
-        //
+        $note->delete();
+
+        return response()->json(['message' => 'Note deleted successfully'], 204);
     }
 }
